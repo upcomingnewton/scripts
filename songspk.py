@@ -2,6 +2,14 @@ import sys
 import requests
 from lxml import html
 import json
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import datetime
+import logging
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logger = logging.getLogger()
 
 def download_page(url):
     r = requests.get(url)
@@ -34,31 +42,27 @@ def parse_html(html,xpath):
     return updates
     
 def diff(content,f,xpath):
+    new_updates = {}
+    has_changes = False
     try:
-        new_updates = {}
-        has_changes = False
-        try:
-            fp = open(f)
-            prev_data =  json.loads(fp.read())
-            fp.close()
-        except Exception,e:
-            prev_data = {}
-        for x in xpath.keys():
-            # for this key, check links
-            new_updates[x] = []
-            if prev_data and x in prev_data:
-                prev_links = [t['link'] for t in prev_data[x]]
-                for new_content in content[x]:
-                    if new_content['link'] not in prev_links:
-                        new_updates[x].append(new_content)
-                        has_changes = True
-            else:
-                new_updates[x] = content[x][:]
-                has_changes = True
-        return new_updates,has_changes
+        fp = open(f)
+        prev_data =  json.loads(fp.read())
+        fp.close()
     except Exception,e:
-        print e
-        pass
+        prev_data = {}
+    for x in xpath.keys():
+        # for this key, check links
+        new_updates[x] = []
+        if prev_data and x in prev_data:
+            prev_links = [t['link'] for t in prev_data[x]]
+            for new_content in content[x]:
+                if new_content['link'] not in prev_links:
+                    new_updates[x].append(new_content)
+                    has_changes = True
+        else:
+            new_updates[x] = content[x][:]
+            has_changes = True
+    return new_updates,has_changes
 
 def update_file(content, f):
     fp = open(f,"w")
@@ -96,21 +100,44 @@ def make_table(xpath,content):
         """
     return html
 
-def send_email(email_content):
-    print email_content
+def send_email(email_content,to):
+    fromaddr = 'scripts.nitinchadha@gmail.com'
+    toaddrs = to
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = "SongsPK Update"
+    msg['From'] = fromaddr
+    msg['To'] = ",".join(toaddrs)
+    part2 = MIMEText(email_content, 'html')
+    msg.attach(part2)
+    username = 'scripts.nitinchadha@gmail.com'
+    password = 'Automatic@123'
+    server = smtplib.SMTP('smtp.gmail.com:587')
+    server.ehlo()
+    server.starttls()
+    server.login(username,password)
+    server.sendmail(fromaddr, toaddrs, msg.as_string())
+    server.quit()
 
 
 if __name__ == "__main__":
-    url = sys.argv[1]
-    f = sys.argv[2]
-    html = download_page(url)
-    xpath = {
-        "album_update": '//ul[@class="songs-list1"]',
-        "single_track_update": '//ul[@class="songs-list11"]'
-    }
-    content = parse_html(html,xpath)
-    diff_content,has_changes = diff(content,f,xpath)
-    update_file(content,f)
-    if has_changes:
-        email_content = make_table(xpath,diff_content)
-        send_email(email_content)
+    try:
+        print "Starting .. {0}".format(str(datetime.datetime.now()))
+        url = sys.argv[1]
+        f = sys.argv[2]
+        to = sys.argv[3:]
+        html = download_page(url)
+        xpath = {
+            "album_update": '//ul[@class="songs-list1"]',
+            "single_track_update": '//ul[@class="songs-list11"]'
+        }
+        content = parse_html(html,xpath)
+        diff_content,has_changes = diff(content,f,xpath)
+        update_file(content,f)
+        if has_changes:
+            email_content = make_table(xpath,diff_content)
+            send_email(email_content,to)
+        print "Completed .. {0}".format(str(datetime.datetime.now()))
+    except Exception,e:
+        logger.exception(str(e))
+        print "Exception .. {0}".format(str(datetime.datetime.now()))
+        
