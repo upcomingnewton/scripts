@@ -70,7 +70,6 @@ if __name__ == "__main__":
         xpath = {
             "horoscope_body_p": '//div[@id="horoscope-body"]/p'
         }
-        import pdb; pdb.set_trace()
         content = to_ascii(parse_html(html,xpath))
         diff_content,has_changes = diff(content,f,xpath)
         update_file(content,f)
