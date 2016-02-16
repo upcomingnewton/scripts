@@ -31,9 +31,9 @@ def diff(content,f,xpath):
     fp.close() 
     if data:
       prev_data =  json.loads(data)
-      if content != prev_data:
-        return content,True
-  return "",False     
+      if content == prev_data:
+        return "",False
+  return content,True
 
 def update_file(content, f):
     fp = open(f,"w")
