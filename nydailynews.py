@@ -1,4 +1,5 @@
 import sys
+import os.path
 import requests
 from lxml import html
 import json
@@ -24,11 +25,14 @@ def parse_html(html,xpath):
    return html.xpath(xpath['horoscope_body_p'])[0].text
  
 def diff(content,f,xpath):
-  fp = open(f)
-  prev_data =  json.loads(fp.read())
-  fp.close()
-  if content != prev_data:
-    return content,True
+  if os.path.isfile(f):
+    fp = open(f)
+    data = fp.read()
+    fp.close() 
+    if data:
+      prev_data =  json.loads(data)
+      if content != prev_data:
+        return content,True
   return "",False     
 
 def update_file(content, f):
